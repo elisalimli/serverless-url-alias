@@ -2,40 +2,38 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"net"
+	"net/http"
 
 	"github.com/elisalimli/serverless-url-alias/domain"
+	"github.com/elisalimli/serverless-url-alias/internal/api"
+	"github.com/elisalimli/serverless-url-alias/internal/initializers"
 	"github.com/elisalimli/serverless-url-alias/internal/sheets"
 )
 
+func init() {
+
+	initializers.Initialize()
+}
+
 func main() {
+	log.Println("-------------------------")
 	ctx := context.Background()
 
 	client, err := sheets.NewClient(ctx)
-	domain := domain.NewDomain(*client)
-
 	if err != nil {
 		log.Fatalf("error occured while creating new service : %v", err)
 	}
+	domain := domain.NewDomain(*client)
+	handlers := api.Handlers{Domain: *domain, SheetAuth: sheets.SheetAuth{GoogleSheetId: initializers.GoogleSheetId, GoogleSheetName: initializers.GoogleSheetName}}
 
-	// Prints the names and majors of students in a sample spreadsheet:
-	// https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
-	spreadsheetId := "1Czrh54YBicnvTv6MrIqQ1CsLKlFf9D07EtKQNXTb6w0"
-	readRange := "Sheet1!A:B"
-	data, err := domain.GetSpreadsheetData(spreadsheetId, readRange)
+	http.HandleFunc("/", handlers.Redirect)
+	listenAddr := net.JoinHostPort(initializers.Host, initializers.Port)
 
+	log.Printf("starting to listen at %v", listenAddr)
+	err = http.ListenAndServe(listenAddr, nil)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	if len(data) == 0 {
-		fmt.Println("No data found.")
-	} else {
-		fmt.Println("Name, Major:")
-		for _, row := range data {
-			// Print columns A and E, which correspond to indices 0 and 4.
-			fmt.Printf("%#v %#v\n", row[0], row[1])
-		}
 	}
 }
