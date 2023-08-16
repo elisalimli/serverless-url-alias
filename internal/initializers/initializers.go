@@ -1,6 +1,7 @@
 package initializers
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -22,13 +23,14 @@ func Initialize() {
 
 	Port, Host, GoogleSheetId, GoogleSheetName = os.Getenv("PORT"), os.Getenv("LISTEN_ADDR"), os.Getenv("GOOGLE_SHEET_ID"), os.Getenv("GOOGLE_SHEET_NAME")
 
+	fmt.Println("HOST", Host, "PORT", Port)
 	if Port == "" {
 		Port = "4000"
 	}
 
-	if Host == "" {
-		Host = "localhost"
-	}
+	// if Host == "" {
+	// Host = "localhost"
+	// }
 
 	if GoogleSheetId == "" {
 		log.Fatal("unable to access google sheet id, check environment variables")

@@ -19,6 +19,7 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 	// if err != nil {
 	// log.Fatal(err)
 	// }
+
 	if req.Body != nil {
 		defer req.Body.Close()
 	}
@@ -27,15 +28,17 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		writeError(w, "couldn't get spread sheet data", http.StatusInternalServerError)
 	}
-	segments := strings.Split(req.URL.Path, "/")
-	baseURL, discardedPaths := getRedirect(urlMap, segments)
-	redirectTo := prepRedirect(baseURL, discardedPaths, req.URL)
 
-	if redirectTo == nil {
+	segments := strings.Split(req.URL.Path, "/")
+
+	baseURL, discardedPaths := getRedirect(urlMap, segments)
+	if baseURL == nil {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "alias %v not found", req.URL.Path)
 		return
 	}
+
+	redirectTo := prepRedirect(baseURL, discardedPaths, req.URL)
 
 	http.Redirect(w, req, redirectTo.String(), http.StatusMovedPermanently)
 }
