@@ -13,11 +13,6 @@ import (
 
 const tokenFile = "token.json"
 
-type SheetAuth struct {
-	GoogleSheetId   string
-	GoogleSheetName string
-}
-
 // getTokenFromWeb requests a token from the web.
 func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)

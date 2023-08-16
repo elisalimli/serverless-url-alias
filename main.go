@@ -25,8 +25,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("error occured while creating new service : %v", err)
 	}
-	domain := domain.NewDomain(*client)
-	handlers := api.Handlers{Domain: *domain, SheetAuth: sheets.SheetAuth{GoogleSheetId: initializers.GoogleSheetId, GoogleSheetName: initializers.GoogleSheetName}}
+	d := domain.NewDomain(*client)
+	handlers := &api.Handlers{Domain: d}
 
 	http.HandleFunc("/", handlers.Redirect)
 	listenAddr := net.JoinHostPort(initializers.Host, initializers.Port)

@@ -6,39 +6,45 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/elisalimli/serverless-url-alias/domain"
 )
 
-func (h *Handlers) Redirect(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 
 	// Prints the names and majors of students in a sample spreadsheet:
 	// https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
-	readRange := h.SheetAuth.GoogleSheetName + "!A:B"
-	data, err := h.Domain.GetSpreadsheetData(h.SheetAuth.GoogleSheetId, readRange)
+	// data, err := h.Domain.GetSpreadsheetData(readRange)
 
-	if err != nil {
-		log.Fatal(err)
+	// if err != nil {
+	// log.Fatal(err)
+	// }
+	if req.Body != nil {
+		defer req.Body.Close()
 	}
 
-	urlMap := urlMap(data)
-	segments := strings.Split(r.URL.Path, "/")
-	fmt.Println("segments", r.URL.Path, segments)
+	urlMap, err := h.Domain.DB.Get()
+	if err != nil {
+		writeError(w, "couldn't get spread sheet data", http.StatusInternalServerError)
+	}
+	segments := strings.Split(req.URL.Path, "/")
 	baseURL, discardedPaths := getRedirect(urlMap, segments)
+	redirectTo := prepRedirect(baseURL, discardedPaths, req.URL)
 
-	fmt.Println("test", baseURL, discardedPaths)
-	redirectTo := prepRedirect(baseURL, discardedPaths, r.URL)
 	if redirectTo == nil {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "alias %v not found", r.URL.Path)
+		fmt.Fprintf(w, "alias %v not found", req.URL.Path)
 		return
 	}
-	http.Redirect(w, r, redirectTo.String(), http.StatusMovedPermanently)
+
+	http.Redirect(w, req, redirectTo.String(), http.StatusMovedPermanently)
 }
 
-func getRedirect(m map[string]*url.URL, segments []string) (*url.URL, []string) {
+func getRedirect(m domain.UrlMap, segments []string) (*url.URL, []string) {
 	discarded := []string{}
 	for len(segments) > 0 {
 		baseURL := checkRedirect(m, strings.Join(segments, "/"))
-		log.Println("baseUrl", baseURL, strings.Join(segments, "/"))
+		log.Println("redirecting = ", strings.Join(segments, "/"), "to=", baseURL)
 		if baseURL != nil {
 			return baseURL, discarded
 		}
@@ -65,7 +71,7 @@ func prepRedirect(baseURL *url.URL, discardedPaths []string, path *url.URL) *url
 	return baseURL
 }
 
-func checkRedirect(m map[string]*url.URL, path string) *url.URL {
+func checkRedirect(m domain.UrlMap, path string) *url.URL {
 	path = strings.TrimPrefix(path, "/")
 	return m[path]
 }
@@ -83,40 +89,3 @@ alias query /sub/?c=d ~~> ?c=d
 
 
 */
-
-func urlMap(in [][]interface{}) map[string]*url.URL {
-	res := map[string]*url.URL{}
-	// starting from first index to skip the headers
-	for _, row := range in[1:] {
-		// row should be in the follwing format : [alias, url]
-		if len(row) < 2 {
-			continue
-		}
-
-		alias, ok := row[0].(string)
-		if !ok {
-			log.Printf("warn: %v alias is invalid", alias)
-			continue
-		}
-		value, ok := row[1].(string)
-		if !ok || value == "" {
-			log.Printf("warn: %v url value is invalid", value)
-			continue
-		}
-
-		alias = strings.ToLower(alias)
-
-		url, err := url.Parse(value)
-		if err != nil {
-			log.Printf("warn: %s=%s url is invalid", alias, value)
-			continue
-		}
-
-		_, exists := res[alias]
-		if exists {
-			log.Printf("warn: duplicate alias %s, overwritting", alias)
-		}
-		res[alias] = url
-	}
-	return res
-}
